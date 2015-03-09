@@ -58,7 +58,12 @@ namespace DevMentor.PerformanceMonitoring
                 string result = WebConfigurationManager.AppSettings[ConfigNameFilePath];
                 if (string.IsNullOrEmpty(result))
                 {
-                    result = @"c:\temp\perflog{0:ddMMyyyy}.log";
+                    result = @"~\App_Data\perflog{0:ddMMyyyy}.log";
+                }
+                if (result.StartsWith("~"))
+                {
+                    result = result.Replace("~", HttpRuntime.AppDomainAppPath);
+                    result = result.Replace("\\\\", "\\");
                 }
                 result = string.Format(result, DateTime.Now);
                 return result;
@@ -83,6 +88,8 @@ namespace DevMentor.PerformanceMonitoring
         {
             if (!this.Enabled)
                 return;
+            System.IO.Directory.CreateDirectory(new FileInfo(this.FilePath).Directory.FullName);
+
             try
             {
                 using (FileStream fs = new FileStream(this.FilePath, FileMode.OpenOrCreate,

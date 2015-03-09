@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Mvc;
@@ -21,7 +22,7 @@ namespace TaskTest.Controllers
             IndexViewModel model = null;
 
             Session["date"] = DateTime.Now;
-            using (var monitor = new PerfMonitor("MyUsing")) 
+            using (var monitor = new PerfMonitor("MyUsing"))
             {
                 try
                 {
@@ -45,7 +46,7 @@ namespace TaskTest.Controllers
                 catch (TimeoutException ex)
                 {
                     //Log.Warning("Timeout");
-                    monitor.Line.Message = "TimeoutException "+ex.Message;
+                    monitor.Line.Message = "TimeoutException " + ex.Message;
                 }
             }
             return View(model);
@@ -55,9 +56,26 @@ namespace TaskTest.Controllers
 
         public ActionResult About()
         {
-            ViewBag.Message = "Your application description page.";
+            ViewBag.Message = "MultiThreaded Test";
+
+            for (int i = 0; i < 10; i++)
+                new System.Threading.Thread(() => ThreadTest("t" + i)).Start();
+
+            for (int i = 0; i < 10; i++)
+                ThreadPool.QueueUserWorkItem(new WaitCallback((p) => ThreadTest((string)p)), "tp" + i);
 
             return View();
+        }
+
+        public void ThreadTest(string name)
+        {
+            for (int i = 0; i < 100; i++)
+            {
+                using (new PerfMonitor(name))
+                {
+                    //Thread.Sleep(10);
+                }
+            }
         }
 
         public ActionResult Contact()
@@ -81,7 +99,7 @@ namespace TaskTest.Controllers
         {
             System.Threading.Thread.Sleep(300);
             throw new NotImplementedException();
-         
+
         }
 
 
