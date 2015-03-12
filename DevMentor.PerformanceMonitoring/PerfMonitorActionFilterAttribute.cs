@@ -9,27 +9,55 @@ namespace DevMentor.PerformanceMonitoring
 {
     public class PerfMonitorActionFilterAttribute : ActionFilterAttribute
     {
-        PerfMonitor monitor;
+        System.Collections.Concurrent.ConcurrentDictionary<string, PerfMonitor> dir = new System.Collections.Concurrent.ConcurrentDictionary<string, PerfMonitor>();
+
+
         public PerfMonitorActionFilterAttribute()
         {
 
         }
         public override void OnActionExecuting(ActionExecutingContext filterContext)
         {
+            if (!PerfMonitorContext.Current.Enabled)
+                return;
+
+            var key = filterContext.ActionDescriptor.UniqueId;
+
+            PerfMonitor monitor;
             monitor = new PerfMonitor("PerfLogActionFilter");
             monitor.Line.Url = "/" + filterContext.ActionDescriptor.ControllerDescriptor.ControllerName + "/" + filterContext.ActionDescriptor.ActionName;
+            dir.TryAdd(key, monitor);
+
             base.OnActionExecuting(filterContext);
         }
 
         public override void OnActionExecuted(ActionExecutedContext filterContext)
         {
-            if (filterContext.Exception != null)
+            if (!PerfMonitorContext.Current.Enabled)
+                return;
+
+            var key = filterContext.ActionDescriptor.UniqueId;
+            PerfMonitor monitor;
+            if (dir.TryRemove(key, out monitor))
             {
-                monitor.Line.Message = filterContext.Exception.Message;
-                monitor.Line.Status = 520;
+                if (filterContext.Exception != null)
+                {
+                    monitor.Line.Message = filterContext.Exception.Message;
+                    monitor.Line.Status = 520;
+                }
+                monitor.Dispose();
             }
-            monitor.Dispose();
             base.OnActionExecuted(filterContext);
+        }
+
+        string GenerateKey(ControllerContext filterContext)
+        {
+            var result = string.Empty;
+            foreach (var item in filterContext.RouteData.Values)
+            {
+                result += "." + item.Value.ToString();
+            }
+            return System.Threading.Thread.CurrentThread.ManagedThreadId + "TID " + result;
         }
     }
 }
